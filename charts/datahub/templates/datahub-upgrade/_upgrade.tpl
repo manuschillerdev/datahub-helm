@@ -3,6 +3,7 @@
 Return the env variables for upgrade jobs
 */}}
 {{- define "datahub.upgrade.env" -}}
+{{- include "datahub.tls.javaEnv" (dict "context" . "prefix" "SPRING_KAFKA_PROPERTIES_") }}
 {{- if .Values.global.basePath.enabled }}
 - name: DATAHUB_BASE_PATH
   value: {{ .Values.global.basePath.frontend | quote }}

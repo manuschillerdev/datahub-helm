@@ -1541,6 +1541,123 @@
     "global": {
       "type": "object",
       "properties": {
+        "tls": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "ca": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "secretName": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "dependencies": {
+                "secretName": [
+                  "key"
+                ],
+                "key": [
+                  "secretName"
+                ]
+              }
+            },
+            "cert": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "secretName": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "dependencies": {
+                "secretName": [
+                  "key"
+                ],
+                "key": [
+                  "secretName"
+                ]
+              }
+            },
+            "key": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "secretName": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "dependencies": {
+                "secretName": [
+                  "key"
+                ],
+                "key": [
+                  "secretName"
+                ]
+              }
+            },
+            "keyPasswordFile": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "secretName": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "dependencies": {
+                "secretName": [
+                  "key"
+                ],
+                "key": [
+                  "secretName"
+                ]
+              }
+            }
+          }
+        },
+        "pythonKafkaConfigurationOverrides": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        "pythonKafkaSchemaRegistryConfigurationOverrides": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
         "preProcessHooksUIEnabled": {
           "type": "boolean"
         },

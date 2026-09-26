@@ -1,4 +1,4 @@
-{{- if and .Values.kafkaSetupJob.enabled (not (.Values.global.datahub.systemUpdate.consolidatedUpgrade | default true)) -}}
+{{- if and .Values.kafkaSetupJob.enabled (not (dig "consolidatedUpgrade" true .Values.global.datahub.systemUpdate)) -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -44,6 +44,7 @@ spec:
         {{- toYaml . | nindent 8 }}
     {{- end }}
       volumes:
+        {{- include "datahub.tls.volumes" (dict "context" . "java" true) | nindent 8 }}
         {{- with .Values.global.credentialsAndCertsSecrets }}
         - name: datahub-certs-dir
           secret:
@@ -53,9 +54,12 @@ spec:
       {{- with .Values.kafkaSetupJob.extraVolumes }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.kafkaSetupJob.extraInitContainers }}
+      {{- if or .Values.kafkaSetupJob.extraInitContainers (and (.Values.global.tls | default dict).enabled (.Values.global.tls | default dict).cert) }}
       initContainers:
+        {{- include "datahub.tls.initContainer" (dict "context" . "image" .Values.kafkaSetupJob.image "securityContext" .Values.kafkaSetupJob.securityContext) | nindent 8 }}
+        {{- with .Values.kafkaSetupJob.extraInitContainers }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- end }}
       containers:
         - name: kafka-setup-job
@@ -68,9 +72,10 @@ spec:
           args: {{ .Values.kafkaSetupJob.image.args | toRawJson }}
           {{- end }}
           env:
-            {{- if .Values.global.kafka.zookeeper.server }}
+            {{- include "datahub.tls.javaEnv" (dict "context" . "prefix" "KAFKA_PROPERTIES_") | nindent 12 }}
+            {{- with (.Values.global.kafka.zookeeper | default dict).server }}
             - name: KAFKA_ZOOKEEPER_CONNECT
-              value: {{ .Values.global.kafka.zookeeper.server | quote }}
+              value: {{ . | quote }}
             {{- end }}
             - name: KAFKA_BOOTSTRAP_SERVER
               value: {{ .Values.global.kafka.bootstrap.server | quote }}
@@ -84,21 +89,6 @@ spec:
             {{- else if eq .Values.global.kafka.schemaregistry.type "KAFKA" }}
             - name: USE_CONFLUENT_SCHEMA_REGISTRY
               value: "true"
-            {{- end }}
-            {{- if .Values.global.springKafkaConfigurationOverrides }}
-            {{- range $configName, $configValue := .Values.global.springKafkaConfigurationOverrides }}
-            - name: KAFKA_PROPERTIES_{{ $configName | replace "." "_" | upper }}
-              value: {{ $configValue | quote }}
-            {{- end }}
-            {{- end }}
-            {{- if .Values.global.credentialsAndCertsSecrets }}
-            {{- range $envVarName, $envVarValue := .Values.global.credentialsAndCertsSecrets.secureEnv }}
-            - name: KAFKA_PROPERTIES_{{ $envVarName | replace "." "_" | upper }}
-              valueFrom:
-                secretKeyRef:
-                  name: {{ $.Values.global.credentialsAndCertsSecrets.name }}
-                  key: {{ $envVarValue }}
-            {{- end }}
             {{- end }}
             {{- with .Values.global.kafka.topics }}
             - name: METADATA_CHANGE_EVENT_NAME
@@ -136,6 +126,7 @@ spec:
           securityContext:
             {{- toYaml .Values.kafkaSetupJob.securityContext | nindent 12 }}
           volumeMounts:
+            {{- include "datahub.tls.mounts" (dict "context" . "java" true) | nindent 12 }}
           {{- if .Values.global.credentialsAndCertsSecrets }}
             - name: datahub-certs-dir
               mountPath: {{ .Values.global.credentialsAndCertsSecrets.path | default "/mnt/certs" }}

@@ -1,0 +1,82 @@
+global:
+  hostAliases: []
+  datahub:
+    version: local
+    monitoring:
+      enablePrometheus: false
+  datahub_standalone_consumers_enabled: false
+  kafka:
+    bootstrap:
+      server: redpanda-0.redpanda.datahub-tls.svc.cluster.local:9093
+    schemaregistry:
+      type: KAFKA
+      url: https://redpanda-0.redpanda.datahub-tls.svc.cluster.local:8081
+      configureCleanupPolicy: false
+  tls:
+    enabled: true
+    ca: {secretName: datahub-client, key: ca.crt}
+    cert: {secretName: datahub-client, key: tls.crt}
+    key: {secretName: datahub-client, key: tls.key}
+  elasticsearch:
+    host: opensearch
+    port: "9200"
+    useSSL: "false"
+    implementation: opensearch
+  sql:
+    datasource:
+      host: mysql:3306
+      hostForMysqlClient: mysql
+      port: "3306"
+      url: jdbc:mysql://mysql:3306/datahub?useSSL=false&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8
+      driver: com.mysql.cj.jdbc.Driver
+      username: root
+      password:
+        secretRef: tls-lab-credentials
+        secretKey: MYSQL_ROOT_PASSWORD
+datahub-gms:
+  service: {type: ClusterIP}
+  resources:
+    requests: {cpu: 100m, memory: 1Gi}
+    limits: {memory: 3Gi}
+  extraEnvs:
+    - name: JAVA_TOOL_OPTIONS
+      value: -Dorg.apache.kafka.sasl.oauthbearer.allowed.urls=https://keycloak/realms/datahub/protocol/openid-connect/token
+datahub-frontend:
+  service: {type: ClusterIP}
+  oidcAuthentication:
+    enabled: true
+    provider: other
+    clientId: datahub-sso
+    clientSecretRef:
+      secretRef: tls-lab-credentials
+      secretKey: DATAHUB_SSO_CLIENT_SECRET
+    discoveryUri: https://keycloak/realms/datahub/.well-known/openid-configuration
+    oidcBaseUrl: http://localhost:9002
+    scope: openid profile email
+    user_name_claim: preferred_username
+    user_name_claim_regex: (.*)
+  extraEnvs:
+    - name: JAVA_TOOL_OPTIONS
+      value: -Djavax.net.ssl.trustStore=/lab-trust/truststore.p12 -Djavax.net.ssl.trustStoreType=PKCS12 -Djavax.net.ssl.trustStorePassword=changeit
+  extraVolumes:
+    - name: lab-ca
+      secret:
+        secretName: lab-ca
+        items: [{key: tls.crt, path: ca.crt}]
+    - name: lab-trust
+      emptyDir: {}
+  extraVolumeMounts:
+    - {name: lab-trust, mountPath: /lab-trust, readOnly: true}
+acryl-datahub-actions:
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 1Gi}
+datahubSystemUpdate:
+  resources:
+    requests: {cpu: 100m, memory: 1Gi}
+    limits: {memory: 3Gi}
+  extraEnvs:
+    - name: JAVA_TOOL_OPTIONS
+      value: -Dorg.apache.kafka.sasl.oauthbearer.allowed.urls=https://keycloak/realms/datahub/protocol/openid-connect/token
+datahubUpgrade:
+  enabled: false

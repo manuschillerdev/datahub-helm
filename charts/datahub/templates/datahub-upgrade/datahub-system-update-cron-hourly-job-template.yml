@@ -11,7 +11,7 @@ metadata:
     {{- include "datahub.labels" . | nindent 4 }}
 spec:
   suspend: {{ .Values.global.readonly }}
-  {{- include "datahub.upgrade.dailyCronWindow" . | nindent 2}}
+  schedule: {{ .Values.datahubSystemCronHourly.schedule | default "0 * * * *" | quote }}
   jobTemplate:
     metadata:
       labels:
@@ -47,6 +47,7 @@ spec:
             {{- toYaml . | nindent 12 }}
         {{- end }}
           volumes:
+            {{- include "datahub.tls.volumes" (dict "context" . "java" true) | nindent 12 }}
             {{- with .Values.global.credentialsAndCertsSecrets }}
             - name: datahub-certs-dir
               secret:
@@ -60,6 +61,7 @@ spec:
           securityContext:
             {{- toYaml .Values.datahubSystemCronHourly.podSecurityContext | nindent 12 }}
           initContainers:
+            {{- include "datahub.tls.initContainer" (dict "context" . "image" .Values.datahubSystemCronHourly.image "securityContext" .Values.datahubSystemCronHourly.securityContext) | nindent 12 }}
           {{- with .Values.datahubSystemCronHourly.extraInitContainers }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
@@ -93,6 +95,7 @@ spec:
               securityContext:
                 {{- toYaml .Values.datahubSystemCronHourly.securityContext | nindent 16 }}
               volumeMounts:
+                {{- include "datahub.tls.mounts" (dict "context" . "java" true) | nindent 16 }}
               {{- with .Values.global.credentialsAndCertsSecrets }}
                 - name: datahub-certs-dir
                   mountPath: {{ .path | default "/mnt/certs" }}
@@ -101,8 +104,8 @@ spec:
                 {{- toYaml . | nindent 16 }}
               {{- end }}
               resources:
-                {{- toYaml .Values.datahubSystemCronHourly.restoreIndices.resources | nindent 16}}
-            {{- with .Values.datahubSystemCronHourly.restoreIndices.extraSidecars }}
+                {{- toYaml .Values.datahubSystemCronHourly.resources | nindent 16}}
+            {{- with .Values.datahubSystemCronHourly.extraSidecars }}
               {{- toYaml . | nindent 12 }}
             {{- end }}
           {{- with .Values.datahubSystemCronHourly.nodeSelector }}

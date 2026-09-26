@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm
+data:
+  datahub-realm.json: |
+{{ .Files.Get "realm.json" | indent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+spec:
+  selector: {app: keycloak}
+  ports:
+    - name: https
+      port: 443
+      targetPort: 8443
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: keycloak-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests: {storage: 1Gi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: keycloak}
+  template:
+    metadata:
+      labels: {app: keycloak}
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: keycloak
+          image: {{ .Values.keycloak.image }}
+          args:
+            - start-dev
+            - --import-realm
+            - --http-enabled=false
+            - --https-certificate-file=/certs/tls.crt
+            - --https-certificate-key-file=/certs/tls.key
+            - --hostname={{ .Values.keycloak.publicUrl }}
+            - --hostname-backchannel-dynamic=true
+          envFrom:
+            - secretRef: {name: tls-lab-credentials}
+          env:
+            - name: KC_HEALTH_ENABLED
+              value: "true"
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              value: admin
+          ports:
+            - {name: https, containerPort: 8443}
+          readinessProbe:
+            httpGet:
+              path: /realms/datahub/.well-known/openid-configuration
+              port: https
+              scheme: HTTPS
+            initialDelaySeconds: 15
+          resources:
+            requests: {cpu: 100m, memory: 512Mi}
+            limits: {memory: 1Gi}
+          volumeMounts:
+            - {name: realm, mountPath: /opt/keycloak/data/import, readOnly: true}
+            - {name: certs, mountPath: /certs, readOnly: true}
+            - {name: data, mountPath: /opt/keycloak/data/h2}
+      volumes:
+        - name: realm
+          configMap: {name: keycloak-realm}
+        - name: certs
+          secret: {secretName: keycloak-server}
+        - name: data
+          persistentVolumeClaim: {claimName: keycloak-data}

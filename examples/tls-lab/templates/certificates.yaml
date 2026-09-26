@@ -1,0 +1,73 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: lab-selfsigned
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lab-ca
+spec:
+  isCA: true
+  commonName: DataHub local TLS lab CA
+  secretName: lab-ca
+  duration: 2160h
+  renewBefore: 360h
+  privateKey:
+    algorithm: RSA
+    size: 2048
+    rotationPolicy: Always
+  issuerRef:
+    name: lab-selfsigned
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: lab-ca
+spec:
+  ca:
+    secretName: lab-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: datahub-client
+spec:
+  secretName: datahub-client
+  commonName: datahub
+  duration: 168h
+  renewBefore: 24h
+  usages: [client auth, digital signature, key encipherment]
+  privateKey:
+    algorithm: RSA
+    size: 2048
+    encoding: PKCS8
+    rotationPolicy: Always
+  issuerRef:
+    name: lab-ca
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: keycloak-server
+spec:
+  secretName: keycloak-server
+  dnsNames:
+    - localhost
+    - keycloak
+    - keycloak.{{ .Release.Namespace }}
+    - keycloak.{{ .Release.Namespace }}.svc
+    - keycloak.{{ .Release.Namespace }}.svc.cluster.local
+  ipAddresses: [127.0.0.1]
+  usages: [server auth, digital signature, key encipherment]
+  privateKey:
+    algorithm: RSA
+    size: 2048
+    rotationPolicy: Always
+  issuerRef:
+    name: lab-ca
+    kind: Issuer

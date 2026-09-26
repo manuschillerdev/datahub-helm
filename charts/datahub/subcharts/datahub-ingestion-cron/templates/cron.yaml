@@ -65,6 +65,7 @@ spec:
               {{- toYaml .resources | nindent 14 }}
             {{- end }}
             volumeMounts:
+              {{- include "datahub.tls.mounts" (dict "context" $ "java" false) | nindent 14 }}
               - name: recipe
                 mountPath: /etc/recipe
             {{- if .extraVolumeMounts }}
@@ -77,6 +78,10 @@ spec:
               {{- toYaml $containerSec | nindent 14 }}
             {{- end }}
             env:
+              {{- if or ($.Values.global.tls | default dict).enabled $.Values.global.pythonKafkaConfigurationOverrides $.Values.global.pythonKafkaSchemaRegistryConfigurationOverrides $.Values.global.pythonKafkaSecretsOverrides }}
+              {{- include "datahub.kafka.iam.python.env" $ | nindent 14 }}
+              {{- include "datahub.tls.pythonEnv" $ | nindent 14 }}
+              {{- end }}
               {{- if .env }}
               {{- range $key,$value := .env }}
               - name: {{ $key | quote }}
@@ -109,6 +114,7 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           volumes:
+            {{- include "datahub.tls.volumes" (dict "context" $ "java" false) | nindent 12 }}
             - name: recipe
               configMap:
                 name: {{ required "A valid .recipe.configmapName entry is required!" $val.recipe.configmapName }}

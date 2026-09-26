@@ -1,0 +1,64 @@
+{
+  "realm": "datahub",
+  "enabled": true,
+  "sslRequired": "all",
+  "registrationAllowed": false,
+  "clients": [
+    {
+      "clientId": "datahub-sso",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "${DATAHUB_SSO_CLIENT_SECRET}",
+      "standardFlowEnabled": true,
+      "redirectUris": [
+        "http://localhost:9002/callback/oidc"
+      ],
+      "webOrigins": [
+        "http://localhost:9002"
+      ],
+      "defaultClientScopes": [
+        "profile",
+        "email",
+        "roles"
+      ]
+    },
+    {
+      "clientId": "datahub-kafka",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "${DATAHUB_KAFKA_CLIENT_SECRET}",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "protocolMappers": [
+        {
+          "name": "redpanda-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "redpanda",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "tls-user",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "TLS",
+      "lastName": "Tester",
+      "email": "tls-user@example.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${DATAHUB_TEST_PASSWORD}",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

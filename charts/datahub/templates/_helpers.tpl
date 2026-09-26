@@ -811,7 +811,7 @@ Java-specific properties:
 */}}
 {{- define "datahub.kafka.is-java-only" -}}
 {{- $propName := .propName -}}
-{{- $isJavaOnly := or (hasPrefix "ssl.keystore" $propName) (hasPrefix "ssl.truststore" $propName) (eq $propName "sasl.jaas.config") (eq $propName "sasl.client.callback.handler.class") (eq $propName "sasl.login.class") (hasPrefix "kafkastore" $propName) -}}
+{{- $isJavaOnly := or (hasPrefix "ssl.keystore" $propName) (hasPrefix "ssl.truststore" $propName) (eq $propName "sasl.jaas.config") (eq $propName "sasl.client.callback.handler.class") (eq $propName "sasl.login.class") (eq $propName "sasl.login.callback.handler.class") (hasPrefix "kafkastore" $propName) -}}
 {{- $isJavaOnly -}}
 {{- end -}}
 

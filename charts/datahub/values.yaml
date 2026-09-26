@@ -442,6 +442,8 @@ datahubUpgrade:
 
 ## Code for ES replica tweaking
 datahubSystemCronHourly:
+  schedule: "0 * * * *"
+  resources: {}
   # This feature is not ready yet, DO NOT enable
   # Enabled by default in case resources need to be allocated to be able to run this job
   enabled: false
@@ -1005,6 +1007,21 @@ global:
       enabled: false  # Sets SPRING_KAFKA_PROPERTIES_SASL_* environment variables for Java services
                       # and KAFKA_PROPERTIES_* environment variables for Python services
       awsRegion: ""   # AWS region where MSK cluster is located, e.g. "us-west-2"
+
+  # Opt-in PEM TLS for Kafka, Schema Registry and Python HTTP connections to GMS.
+  # Omit cert and key for server authentication only. Both are required for mTLS.
+  # Secret references use {secretName: ..., key: ...}. Restart pods after rotation.
+  tls:
+    enabled: false
+    ca: {}
+    cert: {}
+    key: {}
+    keyPasswordFile: {}
+
+  # librdkafka properties. These override global.tls defaults for Python clients.
+  pythonKafkaConfigurationOverrides: {}
+  # Confluent Python Schema Registry HTTP client properties, independent of Kafka.
+  pythonKafkaSchemaRegistryConfigurationOverrides: {}
 
   springKafkaConfigurationOverrides:
     partition.assignment.strategy: "org.apache.kafka.clients.consumer.CooperativeStickyAssignor"

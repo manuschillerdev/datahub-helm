@@ -1,0 +1,112 @@
+redpandaEnabled: true
+keycloak:
+  image: quay.io/keycloak/keycloak:26.7.4
+  publicUrl: https://localhost:9443
+redpanda:
+  fullnameOverride: redpanda
+  image:
+    tag: v26.2.3
+  console:
+    enabled: false
+  external:
+    enabled: true
+    service:
+      enabled: false
+    domain: datahub-tls.svc.cluster.local
+    addresses: [redpanda-0.redpanda]
+  auth:
+    sasl:
+      enabled: true
+      secretRef: redpanda-users
+      bootstrapUser:
+        name: lab-admin
+        mechanism: SCRAM-SHA-512
+        secretKeyRef: {name: tls-lab-credentials, key: REDPANDA_PASSWORD}
+  tls:
+    enabled: true
+    certs:
+      default:
+        issuerRef:
+          name: lab-ca
+          kind: Issuer
+        caEnabled: true
+        applyInternalDNSNames: true
+      external:
+        issuerRef:
+          name: lab-ca
+          kind: Issuer
+        caEnabled: true
+        applyInternalDNSNames: true
+  listeners:
+    kafka:
+      port: 9093
+      authenticationMethod: none
+      tls:
+        requireClientAuth: true
+      external:
+        default:
+          port: 9094
+          advertisedPorts: [9094]
+          authenticationMethod: sasl
+          tls:
+            cert: default
+            requireClientAuth: true
+    schemaRegistry:
+      authenticationMethod: none
+      tls:
+        requireClientAuth: true
+      external:
+        default:
+          enabled: false
+    admin:
+      external:
+        default:
+          enabled: false
+    http:
+      enabled: false
+  resources:
+    cpu:
+      cores: 1
+      overprovisioned: true
+    memory:
+      container:
+        max: 2Gi
+  storage:
+    persistentVolume:
+      size: 5Gi
+  statefulset:
+    replicas: 1
+    podTemplate:
+      spec:
+        volumes:
+          - name: oidc-ca
+            secret:
+              secretName: lab-ca
+              items:
+                - key: tls.crt
+                  path: ca.crt
+        containers:
+          - name: redpanda
+            env:
+              - name: SSL_CERT_FILE
+                value: /etc/ssl/certs/ca-certificates.crt
+            volumeMounts:
+              - name: oidc-ca
+                mountPath: /etc/ssl/certs/ca-certificates.crt
+                subPath: ca.crt
+                readOnly: true
+  logging:
+    usageStats:
+      enabled: false
+  config:
+    cluster:
+      auto_create_topics_enabled: true
+      default_topic_replications: 1
+      internal_topic_replication_factor: 1
+      minimum_topic_replications: 1
+      # This isolated lab verifies authentication, not Kafka ACL policy.
+      kafka_enable_authorization: false
+      sasl_mechanisms: [SCRAM, OAUTHBEARER]
+      oidc_discovery_url: https://keycloak/realms/datahub/.well-known/openid-configuration
+      oidc_token_audience: redpanda
+      oidc_principal_mapping: $.preferred_username

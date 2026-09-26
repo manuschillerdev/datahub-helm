@@ -1,0 +1,10 @@
+apiVersion: v2
+name: datahub-tls-lab
+description: Local Colima dependencies for DataHub PEM TLS and OIDC verification
+type: application
+version: 0.1.0
+dependencies:
+  - name: redpanda
+    version: 26.2.4
+    repository: https://charts.redpanda.com
+    condition: redpandaEnabled

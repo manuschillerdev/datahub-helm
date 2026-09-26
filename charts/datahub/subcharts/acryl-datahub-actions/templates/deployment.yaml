@@ -42,6 +42,7 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       volumes:
+        {{- include "datahub.tls.volumes" (dict "context" . "java" false) | nindent 8 }}
       {{- with .Values.global.credentialsAndCertsSecrets }}
         - name: datahub-certs-dir
           secret:
@@ -125,6 +126,9 @@ spec:
             {{- end }}
             - name: KAFKA_AUTO_OFFSET_POLICY
               value: "{{ .Values.actions.kafkaAutoOffsetPolicy }}"
+            {{- if or (.Values.global.tls | default dict).enabled .Values.global.pythonKafkaConfigurationOverrides .Values.global.pythonKafkaSchemaRegistryConfigurationOverrides .Values.global.pythonKafkaSecretsOverrides }}
+            {{- include "datahub.tls.pythonEnv" . | nindent 12 }}
+            {{- else }}
             {{- if .Values.global.springKafkaConfigurationOverrides }}
             {{- range $configName, $configValue := .Values.global.springKafkaConfigurationOverrides }}
             - name: KAFKA_PROPERTIES_{{ $configName | replace "." "_" | upper }}
@@ -138,6 +142,7 @@ spec:
                 secretKeyRef:
                   name: {{ $.Values.global.credentialsAndCertsSecrets.name }}
                   key: {{ $envVarValue }}
+            {{- end }}
             {{- end }}
             {{- end }}
             {{- with .Values.global.kafka.topics }}
@@ -190,6 +195,7 @@ spec:
             {{ toYaml .Values.extraEnvs | nindent 12 }}
           {{- end }}
           volumeMounts:
+            {{- include "datahub.tls.mounts" (dict "context" . "java" false) | nindent 12 }}
           {{- with .Values.global.credentialsAndCertsSecrets }}
             - name: datahub-certs-dir
               mountPath: {{ .path | default "/mnt/certs" }}

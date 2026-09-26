@@ -337,3 +337,67 @@ helm upgrade datahub datahub/datahub --values values.yaml
 ```
 
 For more details, see the [DataHub Semantic Search documentation](https://docs.datahub.com/docs/dev-guides/semantic-search/configuration).
+
+
+### Outbound PEM TLS
+
+`global.tls` configures Kafka and Schema Registry TLS for GMS, standalone
+consumers, setup and upgrade jobs, Actions, and ingestion cron jobs. It also
+sets `REQUESTS_CA_BUNDLE` and `SSL_CERT_FILE` for Python HTTP connections to GMS.
+Use DataHub images containing the Python Kafka environment-binding and Java
+Schema Registry PEM fixes; older images do not consume all of these settings.
+
+```yaml
+global:
+  tls:
+    enabled: true
+    ca:
+      secretName: datahub-ca
+      key: ca.pem
+    cert:
+      secretName: datahub-client-tls
+      key: tls.crt
+    key:
+      secretName: datahub-client-tls
+      key: tls.key
+    # Optional, for an encrypted private key:
+    # keyPasswordFile:
+    #   secretName: datahub-client-tls
+    #   key: key.pass
+```
+
+Omit `cert` and `key` for server authentication only. Omitting `ca` uses the
+runtime's default trust roots. The chart rejects incomplete secret references
+and a certificate without a key (or a key without a certificate). Use a PKCS#8
+PEM private key compatible with the Java Kafka client. A non-root init container
+uses the workload image and security context to combine the certificate chain
+and private key in a memory-backed volume; only that UID can read the combined
+file. Secret mounts are read-only in the application container. Custom pod
+security contexts must provide an `fsGroup` that can read the projected secrets.
+Restart pods after rotating secrets, including the key password.
+
+The Kafka protocol defaults to `SSL`. Existing Spring overrides, Python overrides,
+and IAM authentication retain priority. Set `security.protocol: SASL_SSL` and the
+appropriate SASL properties in each runtime's override map for SASL deployments.
+
+```yaml
+global:
+  springKafkaConfigurationOverrides:
+    security.protocol: SASL_SSL
+  pythonKafkaConfigurationOverrides:
+    security.protocol: SASL_SSL
+  pythonKafkaSchemaRegistryConfigurationOverrides:
+    timeout: 30
+```
+
+The Python maps become `KAFKA_PROPERTIES_*` and
+`KAFKA_SCHEMA_REGISTRY_PROPERTIES_*`, respectively. Use librdkafka property names
+for the broker and Confluent Python Schema Registry properties for HTTP. Each
+map overrides `global.tls` for that client. Java clients receive PEM store types
+and locations through Spring Kafka and `KAFKA_SCHEMA_REGISTRY_SSL_*` settings.
+This does not configure frontend/OIDC trust, GMS ingress mTLS, or backend storage
+TLS. When `global.tls` and the Python override maps are unset, existing chart
+configuration is preserved, including JKS/PKCS12 overrides.
+
+A complete Colima deployment with Redpanda, Keycloak SSO/Kafka OAuth and
+cert-manager is documented in [the local TLS lab](../../examples/tls-lab/README.md).
