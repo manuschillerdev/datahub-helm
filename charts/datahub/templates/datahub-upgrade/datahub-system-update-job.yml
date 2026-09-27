@@ -45,7 +45,7 @@ spec:
         {{- toYaml . | nindent 8 }}
     {{- end }}
       volumes:
-        {{- include "datahub.tls.volumes" (dict "context" . "java" true) | nindent 8 }}
+        {{- include "datahub.tls.volumes" . | nindent 8 }}
         {{- with .Values.global.credentialsAndCertsSecrets }}
         - name: datahub-certs-dir
           secret:
@@ -58,9 +58,8 @@ spec:
       restartPolicy: Never
       securityContext:
         {{- toYaml .Values.datahubSystemUpdate.podSecurityContext | nindent 8 }}
-      {{- if or .Values.datahubSystemUpdate.extraInitContainers (and (.Values.global.tls | default dict).enabled (.Values.global.tls | default dict).cert) }}
+      {{- if .Values.datahubSystemUpdate.extraInitContainers }}
       initContainers:
-        {{- include "datahub.tls.initContainer" (dict "context" . "image" .Values.datahubSystemUpdate.image "securityContext" .Values.datahubSystemUpdate.securityContext) | nindent 8 }}
         {{- with .Values.datahubSystemUpdate.extraInitContainers }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -278,7 +277,7 @@ spec:
           securityContext:
             {{- toYaml .Values.datahubSystemUpdate.securityContext | nindent 12 }}
           volumeMounts:
-            {{- include "datahub.tls.mounts" (dict "context" . "java" true) | nindent 12 }}
+            {{- include "datahub.tls.mounts" . | nindent 12 }}
           {{- with .Values.global.credentialsAndCertsSecrets }}
             - name: datahub-certs-dir
               mountPath: {{ .path | default "/mnt/certs" }}
@@ -346,7 +345,7 @@ spec:
         {{- toYaml . | nindent 8 }}
     {{- end }}
       volumes:
-        {{- include "datahub.tls.volumes" (dict "context" . "java" true) | nindent 8 }}
+        {{- include "datahub.tls.volumes" . | nindent 8 }}
         {{- with .Values.global.credentialsAndCertsSecrets }}
         - name: datahub-certs-dir
           secret:
@@ -361,9 +360,8 @@ spec:
         {{- toYaml .Values.datahubSystemUpdate.podSecurityContext | nindent 8 }}
       {{- $zduStage20 := .Values.global.datahub.systemUpdate.zdu.enable | default false }}
       {{- $scaleDownEffective := and (.Values.global.datahub.systemUpdate.scaleDown.enabled | default false) (not $zduStage20) }}
-      {{- if or .Values.datahubSystemUpdate.extraInitContainers (and (.Values.global.tls | default dict).enabled (.Values.global.tls | default dict).cert) }}
+      {{- if .Values.datahubSystemUpdate.extraInitContainers }}
       initContainers:
-        {{- include "datahub.tls.initContainer" (dict "context" . "image" .Values.datahubSystemUpdate.image "securityContext" .Values.datahubSystemUpdate.securityContext) | nindent 8 }}
         {{- with .Values.datahubSystemUpdate.extraInitContainers }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -518,7 +516,7 @@ spec:
           securityContext:
             {{- toYaml .Values.datahubSystemUpdate.securityContext | nindent 12 }}
           volumeMounts:
-            {{- include "datahub.tls.mounts" (dict "context" . "java" true) | nindent 12 }}
+            {{- include "datahub.tls.mounts" . | nindent 12 }}
           {{- with .Values.global.credentialsAndCertsSecrets }}
             - name: datahub-certs-dir
               mountPath: {{ .path | default "/mnt/certs" }}

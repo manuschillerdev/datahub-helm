@@ -37,6 +37,8 @@ metadata:
   name: datahub-client
 spec:
   secretName: datahub-client
+  additionalOutputFormats:
+    - type: CombinedPEM
   commonName: datahub
   duration: 168h
   renewBefore: 24h

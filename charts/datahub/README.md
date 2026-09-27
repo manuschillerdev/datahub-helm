@@ -342,8 +342,9 @@ For more details, see the [DataHub Semantic Search documentation](https://docs.d
 ### Outbound PEM TLS
 
 `global.tls` configures Kafka and Schema Registry TLS for GMS, standalone
-consumers, setup and upgrade jobs, Actions, and ingestion cron jobs. It also
-sets `REQUESTS_CA_BUNDLE` and `SSL_CERT_FILE` for Python HTTP connections to GMS.
+consumers, setup and upgrade jobs, Actions, and ingestion cron jobs. It leaves
+Python's process-wide HTTP trust unchanged. The chart mounts operator-provided
+PEM files directly and does not merge CA bundles or assume image CA paths.
 Use DataHub images containing the Python Kafka environment-binding and Java
 Schema Registry PEM fixes; older images do not consume all of these settings.
 
@@ -354,27 +355,39 @@ global:
     ca:
       secretName: datahub-ca
       key: ca.pem
-    cert:
+    client:
       secretName: datahub-client-tls
-      key: tls.crt
-    key:
-      secretName: datahub-client-tls
-      key: tls.key
+      key: client.pem
     # Optional, for an encrypted private key:
     # keyPasswordFile:
     #   secretName: datahub-client-tls
     #   key: key.pass
 ```
 
-Omit `cert` and `key` for server authentication only. Omitting `ca` uses the
-runtime's default trust roots. The chart rejects incomplete secret references
-and a certificate without a key (or a key without a certificate). Use a PKCS#8
-PEM private key compatible with the Java Kafka client. A non-root init container
-uses the workload image and security context to combine the certificate chain
-and private key in a memory-backed volume; only that UID can read the combined
-file. Secret mounts are read-only in the application container. Custom pod
-security contexts must provide an `fsGroup` that can read the projected secrets.
-Restart pods after rotating secrets, including the key password.
+Omit `client` for server authentication only. Omitting `ca` uses the runtime's
+default trust roots. The chart rejects incomplete Secret references and a key
+password without a client bundle. The operator supplies `client.pem` containing
+a PKCS#8 PEM private key followed by its leaf certificate and intermediate chain.
+The chart mounts this file read-only; Java uses it as the PEM identity file, and
+Python uses the same path for its certificate and private key settings. The CA
+bundle is separate and must not contain a private key.
+
+Prepare the identity bundle before creating the Secret, using your existing
+certificate delivery process. For example:
+
+```sh
+umask 077
+{ cat tls.key; printf '\n'; cat tls.crt; } > client.pem
+```
+
+`tls.crt` must contain the leaf certificate followed by its intermediates. Store
+`client.pem` in the referenced Secret; cert-manager, Vault and External Secrets
+are optional ways to supply it, not chart dependencies. The chart does not read
+private material during rendering or concatenate it in an init container.
+Secret contents and key/certificate matching are validated by the TLS clients
+when they start, not by Helm. Custom pod security contexts must provide an
+`fsGroup` that can read the projected Secrets. Restart pods after rotating the
+bundle, CA or key password; automatic client reload is not guaranteed.
 
 The Kafka protocol defaults to `SSL`. Existing Spring overrides, Python overrides,
 and IAM authentication retain priority. Set `security.protocol: SASL_SSL` and the
@@ -398,6 +411,39 @@ and locations through Spring Kafka and `KAFKA_SCHEMA_REGISTRY_SSL_*` settings.
 This does not configure frontend/OIDC trust, GMS ingress mTLS, or backend storage
 TLS. When `global.tls` and the Python override maps are unset, existing chart
 configuration is preserved, including JKS/PKCS12 overrides.
+
+For Python HTTP connections such as HTTPS GMS, configure a complete trust bundle
+explicitly through the workload's existing volume and environment settings:
+
+```yaml
+acryl-datahub-actions:
+  extraVolumes:
+    - name: http-trust
+      configMap:
+        name: organization-http-trust
+        items:
+          - key: ca-bundle.pem
+            path: ca-bundle.pem
+  extraVolumeMounts:
+    - name: http-trust
+      mountPath: /mnt/http-trust
+      readOnly: true
+  extraEnvs:
+    - name: REQUESTS_CA_BUNDLE
+      value: /mnt/http-trust/ca-bundle.pem
+    - name: SSL_CERT_FILE
+      value: /mnt/http-trust/ca-bundle.pem
+```
+
+A Secret volume works the same way. For ingestion cron jobs, configure
+`extraVolumes` and `extraVolumeMounts` under
+`datahub-ingestion-cron.crons.<name>`, and set the two variables in that job's
+`env` map. The operator supplies and rotates the complete HTTP trust bundle,
+including public roots when public HTTPS access is required. These variables
+replace the clients' default trust bundle; they do not append certificates.
+Restart consuming pods after rotation. Kafka and Schema Registry retain their
+independent TLS settings. When no HTTP override is configured, clients retain
+their image defaults or existing operator configuration.
 
 A complete Colima deployment with Redpanda, Keycloak SSO/Kafka OAuth and
 cert-manager is documented in [the local TLS lab](../../examples/tls-lab/README.md).

@@ -2,13 +2,10 @@
 {{- define "datahub.tls.validate" -}}
 {{- $tls := .Values.global.tls | default dict -}}
 {{- if $tls.enabled -}}
-{{- if ne (not (empty $tls.cert)) (not (empty $tls.key)) -}}
-{{- fail "global.tls.cert and global.tls.key must be configured together" -}}
+{{- if and $tls.keyPasswordFile (not $tls.client) -}}
+{{- fail "global.tls.keyPasswordFile requires a client PEM bundle" -}}
 {{- end -}}
-{{- if and $tls.keyPasswordFile (not $tls.key) -}}
-{{- fail "global.tls.keyPasswordFile requires a client certificate and key" -}}
-{{- end -}}
-{{- range $name := list "ca" "cert" "key" "keyPasswordFile" -}}
+{{- range $name := list "ca" "client" "keyPasswordFile" -}}
 {{- with index $tls $name -}}
 {{- $_ := required (printf "global.tls.%s.secretName is required" $name) .secretName -}}
 {{- $_ := required (printf "global.tls.%s.key is required" $name) .key -}}
@@ -18,13 +15,13 @@
 {{- end -}}
 
 {{- define "datahub.tls.volumes" -}}
-{{- $tls := .context.Values.global.tls | default dict -}}
-{{- if and $tls.enabled (or $tls.ca $tls.cert) }}
+{{- $tls := .Values.global.tls | default dict -}}
+{{- if and $tls.enabled (or $tls.ca $tls.client) }}
 - name: datahub-tls
   projected:
     defaultMode: 0440
     sources:
-      {{- range $name, $path := dict "ca" "ca.pem" "cert" "tls.crt" "key" "tls.key" }}
+      {{- range $name, $path := dict "ca" "ca.pem" "client" "client.pem" }}
       {{- with index $tls $name }}
       - secret:
           name: {{ .secretName | quote }}
@@ -33,49 +30,15 @@
               path: {{ $path | quote }}
       {{- end }}
       {{- end }}
-{{- if and .java $tls.cert }}
-- name: datahub-tls-keystore
-  emptyDir:
-    medium: Memory
-{{- end }}
 {{- end }}
 {{- end -}}
 
 {{- define "datahub.tls.mounts" -}}
-{{- $tls := .context.Values.global.tls | default dict -}}
-{{- if and $tls.enabled (or $tls.ca $tls.cert) }}
+{{- $tls := .Values.global.tls | default dict -}}
+{{- if and $tls.enabled (or $tls.ca $tls.client) }}
 - name: datahub-tls
   mountPath: /mnt/datahub/tls
   readOnly: true
-{{- if and .java $tls.cert }}
-- name: datahub-tls-keystore
-  mountPath: /mnt/datahub/tls-keystore
-  readOnly: true
-{{- end }}
-{{- end }}
-{{- end -}}
-
-{{/* Reuse the workload image and UID so the private keystore stays mode 0600. */}}
-{{- define "datahub.tls.initContainer" -}}
-{{- $tls := .context.Values.global.tls | default dict -}}
-{{- if and $tls.enabled $tls.cert }}
-- name: prepare-tls-keystore
-  image: {{ include "datahub.image" (dict "imageRegistry" .context.Values.global.imageRegistry "version" .context.Values.global.datahub.version "image" .image) }}
-  imagePullPolicy: {{ .image.pullPolicy | default "IfNotPresent" }}
-  securityContext:
-    {{- toYaml .securityContext | nindent 4 }}
-  command:
-    - /bin/sh
-    - -ec
-    - |
-      umask 077
-      { cat /mnt/datahub/tls/tls.crt; printf '\n'; cat /mnt/datahub/tls/tls.key; } > /mnt/datahub/tls-keystore/client.pem
-  volumeMounts:
-    - name: datahub-tls
-      mountPath: /mnt/datahub/tls
-      readOnly: true
-    - name: datahub-tls-keystore
-      mountPath: /mnt/datahub/tls-keystore
 {{- end }}
 {{- end -}}
 
@@ -100,9 +63,9 @@
 {{- $_ := set $props "ssl.truststore.type" "PEM" -}}
 {{- $_ := set $props "ssl.truststore.location" "/mnt/datahub/tls/ca.pem" -}}
 {{- end -}}
-{{- if $tls.cert -}}
+{{- if $tls.client -}}
 {{- $_ := set $props "ssl.keystore.type" "PEM" -}}
-{{- $_ := set $props "ssl.keystore.location" "/mnt/datahub/tls-keystore/client.pem" -}}
+{{- $_ := set $props "ssl.keystore.location" "/mnt/datahub/tls/client.pem" -}}
 {{- end -}}
 {{- range $key, $value := $props }}
 {{- if not (or (hasKey $overrides $key) (hasKey $secrets $key)) }}
@@ -171,19 +134,16 @@
 {{- if not .Values.global.kafka.iam.enabled -}}
 {{- $_ := set $broker "security.protocol" "SSL" -}}
 {{- end -}}
-{{- range $name, $property := dict "ca" "ssl.ca.location" "cert" "ssl.certificate.location" "key" "ssl.key.location" -}}
-{{- if index $tls $name -}}
-{{- $path := index (dict "ca" "/mnt/datahub/tls/ca.pem" "cert" "/mnt/datahub/tls/tls.crt" "key" "/mnt/datahub/tls/tls.key") $name -}}
-{{- $_ := set $broker $property $path -}}
-{{- $_ := set $registry $property $path -}}
+{{- if $tls.ca -}}
+{{- $_ := set $broker "ssl.ca.location" "/mnt/datahub/tls/ca.pem" -}}
+{{- $_ := set $registry "ssl.ca.location" "/mnt/datahub/tls/ca.pem" -}}
+{{- end -}}
+{{- if $tls.client -}}
+{{- range $property := list "ssl.certificate.location" "ssl.key.location" -}}
+{{- $_ := set $broker $property "/mnt/datahub/tls/client.pem" -}}
+{{- $_ := set $registry $property "/mnt/datahub/tls/client.pem" -}}
 {{- end -}}
 {{- end -}}
-{{- if $tls.ca }}
-- name: REQUESTS_CA_BUNDLE
-  value: /mnt/datahub/tls/ca.pem
-- name: SSL_CERT_FILE
-  value: /mnt/datahub/tls/ca.pem
-{{- end }}
 {{- end -}}
 {{- $overrides := .Values.global.pythonKafkaConfigurationOverrides | default dict -}}
 {{- if not $overrides -}}

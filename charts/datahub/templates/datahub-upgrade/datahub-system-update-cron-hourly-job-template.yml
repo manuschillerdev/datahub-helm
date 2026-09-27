@@ -47,7 +47,7 @@ spec:
             {{- toYaml . | nindent 12 }}
         {{- end }}
           volumes:
-            {{- include "datahub.tls.volumes" (dict "context" . "java" true) | nindent 12 }}
+            {{- include "datahub.tls.volumes" . | nindent 12 }}
             {{- with .Values.global.credentialsAndCertsSecrets }}
             - name: datahub-certs-dir
               secret:
@@ -60,9 +60,8 @@ spec:
           restartPolicy: Never
           securityContext:
             {{- toYaml .Values.datahubSystemCronHourly.podSecurityContext | nindent 12 }}
-          initContainers:
-            {{- include "datahub.tls.initContainer" (dict "context" . "image" .Values.datahubSystemCronHourly.image "securityContext" .Values.datahubSystemCronHourly.securityContext) | nindent 12 }}
           {{- with .Values.datahubSystemCronHourly.extraInitContainers }}
+          initContainers:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           containers:
@@ -95,7 +94,7 @@ spec:
               securityContext:
                 {{- toYaml .Values.datahubSystemCronHourly.securityContext | nindent 16 }}
               volumeMounts:
-                {{- include "datahub.tls.mounts" (dict "context" . "java" true) | nindent 16 }}
+                {{- include "datahub.tls.mounts" . | nindent 16 }}
               {{- with .Values.global.credentialsAndCertsSecrets }}
                 - name: datahub-certs-dir
                   mountPath: {{ .path | default "/mnt/certs" }}

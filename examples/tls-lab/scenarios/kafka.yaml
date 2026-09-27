@@ -1,0 +1,20 @@
+source:
+  type: kafka
+  config:
+    connection:
+      bootstrap: ${KAFKA_BOOTSTRAP_SERVER}
+      schema_registry_url: ${SCHEMA_REGISTRY_URL}
+    topic_patterns:
+      allow: ["^tls-lab[.]events[.].*$"]
+    stateful_ingestion:
+      enabled: false
+    profiling:
+      enabled: true
+      sample_size: 3
+      sampling_strategy: full
+      max_sample_time_seconds: 30
+      max_workers: 1
+sink:
+  type: datahub-rest
+  config:
+    server: http://datahub-datahub-gms:8080

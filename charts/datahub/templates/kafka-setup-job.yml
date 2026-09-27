@@ -44,7 +44,7 @@ spec:
         {{- toYaml . | nindent 8 }}
     {{- end }}
       volumes:
-        {{- include "datahub.tls.volumes" (dict "context" . "java" true) | nindent 8 }}
+        {{- include "datahub.tls.volumes" . | nindent 8 }}
         {{- with .Values.global.credentialsAndCertsSecrets }}
         - name: datahub-certs-dir
           secret:
@@ -54,9 +54,8 @@ spec:
       {{- with .Values.kafkaSetupJob.extraVolumes }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if or .Values.kafkaSetupJob.extraInitContainers (and (.Values.global.tls | default dict).enabled (.Values.global.tls | default dict).cert) }}
+      {{- if .Values.kafkaSetupJob.extraInitContainers }}
       initContainers:
-        {{- include "datahub.tls.initContainer" (dict "context" . "image" .Values.kafkaSetupJob.image "securityContext" .Values.kafkaSetupJob.securityContext) | nindent 8 }}
         {{- with .Values.kafkaSetupJob.extraInitContainers }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -126,7 +125,7 @@ spec:
           securityContext:
             {{- toYaml .Values.kafkaSetupJob.securityContext | nindent 12 }}
           volumeMounts:
-            {{- include "datahub.tls.mounts" (dict "context" . "java" true) | nindent 12 }}
+            {{- include "datahub.tls.mounts" . | nindent 12 }}
           {{- if .Values.global.credentialsAndCertsSecrets }}
             - name: datahub-certs-dir
               mountPath: {{ .Values.global.credentialsAndCertsSecrets.path | default "/mnt/certs" }}

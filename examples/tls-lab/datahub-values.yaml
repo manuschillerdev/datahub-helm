@@ -15,8 +15,7 @@ global:
   tls:
     enabled: true
     ca: {secretName: datahub-client, key: ca.crt}
-    cert: {secretName: datahub-client, key: tls.crt}
-    key: {secretName: datahub-client, key: tls.key}
+    client: {secretName: datahub-client, key: tls-combined.pem}
   elasticsearch:
     host: opensearch
     port: "9200"
@@ -68,9 +67,46 @@ datahub-frontend:
   extraVolumeMounts:
     - {name: lab-trust, mountPath: /lab-trust, readOnly: true}
 acryl-datahub-actions:
+  extraEnvs:
+    - name: PYTHONUNBUFFERED
+      value: "1"
+  extraVolumes:
+    - name: lab-actions
+      configMap:
+        name: tls-lab-actions
+  extraVolumeMounts:
+    - name: lab-actions
+      mountPath: /etc/datahub/actions/conf
+      readOnly: true
   resources:
     requests: {cpu: 100m, memory: 256Mi}
-    limits: {memory: 1Gi}
+    limits: {memory: 2Gi}
+datahub-ingestion-cron:
+  enabled: true
+  fullnameOverride: tls-lab
+  crons:
+    verify:
+      suspend: true
+      concurrencyPolicy: Forbid
+      restartPolicy: Never
+      backoffLimit: 1
+      serviceAccountName: tls-lab-verifier
+      recipe:
+        configmapName: tls-lab-verification
+        fileName: kafka.yaml
+      command: "exec uv run --no-project --python /home/datahub/.venv/bin/python python /etc/recipe/verify.py"
+      env:
+        PYTHONUNBUFFERED: "1"
+        KAFKA_BOOTSTRAP_SERVER: redpanda-0.redpanda.datahub-tls.svc.cluster.local:9093
+        SCHEMA_REGISTRY_URL: https://redpanda-0.redpanda.datahub-tls.svc.cluster.local:8081
+        DATAHUB_SYSTEM_CLIENT_ID: __datahub_system
+      envFromSecrets:
+        DATAHUB_SYSTEM_CLIENT_SECRET:
+          secret: datahub-auth-secrets
+          key: system_client_secret
+      resources:
+        requests: {cpu: 100m, memory: 256Mi}
+        limits: {memory: 1Gi}
 datahubSystemUpdate:
   resources:
     requests: {cpu: 100m, memory: 1Gi}

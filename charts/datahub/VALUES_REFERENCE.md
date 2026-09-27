@@ -2642,8 +2642,7 @@ The **system-update** Job passes `sqlConnTpl=datahub.sql.connection.env.systemUp
 | `datahubSystemCronHourly.resources` | `{}` | Resource requests and limits for the hourly job. |
 | `global.tls.enabled` | `false` | Enable outbound PEM TLS wiring. |
 | `global.tls.ca` | `{}` | CA Secret reference (`secretName`, `key`); empty uses runtime defaults. |
-| `global.tls.cert` | `{}` | Client certificate chain Secret reference. Requires `key`. |
-| `global.tls.key` | `{}` | Client private key Secret reference. Requires `cert`. |
+| `global.tls.client` | `{}` | Operator-provided PEM private key and certificate chain Secret reference (`secretName`, `key`); omit for server authentication only. |
 | `global.tls.keyPasswordFile` | `{}` | Optional encrypted-key password Secret reference. Requires a client identity. |
 | `global.pythonKafkaConfigurationOverrides` | `{}` | Python broker properties, overriding TLS defaults. |
 | `global.pythonKafkaSchemaRegistryConfigurationOverrides` | `{}` | Python Schema Registry properties, overriding TLS defaults. |

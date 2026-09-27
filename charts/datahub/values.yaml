@@ -1008,14 +1008,14 @@ global:
                       # and KAFKA_PROPERTIES_* environment variables for Python services
       awsRegion: ""   # AWS region where MSK cluster is located, e.g. "us-west-2"
 
-  # Opt-in PEM TLS for Kafka, Schema Registry and Python HTTP connections to GMS.
-  # Omit cert and key for server authentication only. Both are required for mTLS.
+  # Opt-in PEM TLS for Kafka and Schema Registry. Python HTTP trust is configured separately.
+  # client references an operator-provided PEM bundle (private key + certificate chain).
+  # Omit client for server authentication only; no certificate provider is required.
   # Secret references use {secretName: ..., key: ...}. Restart pods after rotation.
   tls:
     enabled: false
     ca: {}
-    cert: {}
-    key: {}
+    client: {}
     keyPasswordFile: {}
 
   # librdkafka properties. These override global.tls defaults for Python clients.

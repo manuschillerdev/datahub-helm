@@ -1,0 +1,19 @@
+name: tls_lab_schema_observer
+source:
+  type: kafka
+  config:
+    connection:
+      bootstrap: ${KAFKA_BOOTSTRAP_SERVER}
+      schema_registry_url: ${SCHEMA_REGISTRY_URL}
+      consumer_config:
+        auto.offset.reset: earliest
+filters:
+  - type: event_type
+    config:
+      filter:
+        MetadataChangeLogEvent_v1:
+          event:
+            - entityType: dataset
+              aspectName: schemaMetadata
+action:
+  type: hello_world

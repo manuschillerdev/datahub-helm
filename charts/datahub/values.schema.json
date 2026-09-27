@@ -1570,7 +1570,7 @@
                 ]
               }
             },
-            "cert": {
+            "client": {
               "type": "object",
               "additionalProperties": false,
               "properties": {
@@ -1590,29 +1590,8 @@
                 "key": [
                   "secretName"
                 ]
-              }
-            },
-            "key": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "secretName": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "key": {
-                  "type": "string",
-                  "minLength": 1
-                }
               },
-              "dependencies": {
-                "secretName": [
-                  "key"
-                ],
-                "key": [
-                  "secretName"
-                ]
-              }
+              "description": "Secret reference containing a PEM private key and its certificate chain, prepared by the operator."
             },
             "keyPasswordFile": {
               "type": "object",
